@@ -27,16 +27,17 @@
 <meta property="og:site_name" content="gaius&#96; Blog">
 <meta property="og:description" content="最近发现线上系统有一个列表数据查询接口总是提示接口超时，经过排查发现前端请求接口超时时间设置的为5s，后端接口5s还未返回数据则造成了超时提示。那么为什么5s都还没有返回数据呢，通过日志排查发现该接口的SQL语句查询花了近2s，典型的慢SQL呀(谁写的？出来挨打)，接下就是慢SQL分析、优化的旅程。">
 <meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidmh6wjvvj30xi0fk77a.jpg">
 <meta property="og:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidl9twqhmj315k0fatfw.jpg">
 <meta property="og:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidlak4uv2j315k06idio.jpg">
 <meta property="og:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidlde58nij315k061dik.jpg">
 <meta property="og:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidldmtypdj315k08a0vs.jpg">
 <meta property="article:published_time" content="2020-09-03T04:26:50.000Z">
-<meta property="article:modified_time" content="2020-09-03T10:04:12.340Z">
+<meta property="article:modified_time" content="2020-09-03T10:09:06.991Z">
 <meta property="article:author" content="gaius">
 <meta property="article:tag" content="SQL优化">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidl9twqhmj315k0fatfw.jpg">
+<meta name="twitter:image" content="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidmh6wjvvj30xi0fk77a.jpg">
 
 <link rel="canonical" href="http://example.com/2020/09/03/SQL%E4%BC%98%E5%8C%96-%E5%AD%90%E6%9F%A5%E8%AF%A2/">
 
@@ -218,7 +219,7 @@
               <span class="post-meta-item-text">发表于</span>
               
 
-              <time title="创建时间：2020-09-03 12:26:50 / 修改时间：18:04:12" itemprop="dateCreated datePublished" datetime="2020-09-03T12:26:50+08:00">2020-09-03</time>
+              <time title="创建时间：2020-09-03 12:26:50 / 修改时间：18:09:06" itemprop="dateCreated datePublished" datetime="2020-09-03T12:26:50+08:00">2020-09-03</time>
             </span>
             <span class="post-meta-item">
               <span class="post-meta-item-icon">
@@ -245,7 +246,7 @@
     <div class="post-body" itemprop="articleBody">
 
       
-        <p>最近发现线上系统有一个列表数据查询接口总是提示接口超时，经过排查发现前端请求接口超时时间设置的为5s，后端接口5s还未返回数据则造成了超时提示。<br>那么为什么5s都还没有返回数据呢，通过日志排查发现该接口的SQL语句查询花了近2s，典型的慢SQL呀(<del>谁写的？出来挨打</del>)，接下就是慢SQL分析、优化的旅程。</p>
+        <p><img src="https://tva1.sinaimg.cn/large/007S8ZIlgy1gidmh6wjvvj30xi0fk77a.jpg" alt="慢查询"><br>最近发现线上系统有一个列表数据查询接口总是提示接口超时，经过排查发现前端请求接口超时时间设置的为5s，后端接口5s还未返回数据则造成了超时提示。<br>那么为什么5s都还没有返回数据呢，通过日志排查发现该接口的SQL语句查询花了近2s，典型的慢SQL呀(<del>谁写的？出来挨打</del>)，接下就是慢SQL分析、优化的旅程。</p>
 <a id="more"></a>
 <h1 id="慢SQL语句"><a href="#慢SQL语句" class="headerlink" title="慢SQL语句"></a>慢SQL语句</h1><p>下面的SQL已经被我简化只留下了出问题的SQL，可以看到其实是1个子查询然后连接了两张表。</p>
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> expert.id <span class="keyword">as</span>                                expert_id,</span><br><span class="line">       (<span class="keyword">select</span> <span class="keyword">count</span>(app_scientific_achievement.id)</span><br><span class="line">        <span class="keyword">from</span> app_scientific_achievement</span><br><span class="line">        <span class="keyword">where</span> author_id = expert.id)               achievement_amount</span><br><span class="line"><span class="keyword">from</span> app_expert_user expert</span><br><span class="line">         <span class="keyword">inner</span> <span class="keyword">join</span> app_user <span class="keyword">user</span> <span class="keyword">on</span> expert.id = user.target_id</span><br><span class="line">         <span class="keyword">left</span> <span class="keyword">join</span> sys_basic_data basic <span class="keyword">on</span> basic.id = expert.title_ids</span><br><span class="line"><span class="keyword">where</span> user.status &lt; <span class="number">2</span> <span class="keyword">or</span> user.status &gt; <span class="number">2</span></span><br><span class="line"><span class="keyword">limit</span> <span class="number">0</span>,<span class="number">20</span></span><br></pre></td></tr></table></figure>
